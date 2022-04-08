@@ -25,8 +25,8 @@ class Forbidden extends ErrorResponse {
 		super(message ?? "Forbidden", 403);
 	}
 }
-class UnAuthorized extends ErrorResponse {
-	constructor(message) {
+class Unauthorized extends ErrorResponse {
+	constructor(message = null) {
 		super(message ?? "Not authorized", 401);
 	}
 }
@@ -35,7 +35,7 @@ module.exports = {
 	ErrorResponse,
 	BadRequest,
 	NotFound,
-	UnAuthorized,
+	Unauthorized,
 	Forbidden,
 	InternalServerError,
 };

@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { BadRequest } = require("../utils/errorResponse");
 exports.signUp = async (req, res, next) => {
+	console.log("signup");
 	const { email, password } = req.body;
 
 	try {
@@ -14,49 +15,96 @@ exports.signUp = async (req, res, next) => {
 		const salt = 10;
 		const hashedpassword = await bcrypt.hash(password, salt);
 		user.password = hashedpassword;
-		const payload = { _id: user._id };
-		const token = jwt.sign(payload, process.env.ACCESS_TOKEN_KEY, {
-			expiresIn: "15m",
-		});
 
 		await user.save();
-		const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_KEY, {
-			expiresIn: "7j",
-		});
+		user.password = "";
+
+		const accessToken = generateToken(
+			user.id,
+			process.env.ACCESS_TOKEN_KEY,
+			"15m"
+		);
+		const refreshToken = generateToken(
+			user.id,
+			process.env.REFRESH_TOKEN_KEY,
+			"7d"
+		);
+
 		res.cookie("jid", refreshToken, {
 			httpOnly: true,
 			path: "/api/auth/refresh-token",
 		});
-		res.status(200).send({ success: true, data: user, token });
+		res.status(200).send({ success: true, data: { user, accessToken } });
 	} catch (error) {
 		next(error);
 	}
 };
 
 exports.getAccessToken = async (req, res) => {
-	return res.status(100).send("qdg");
+	const user = req.user;
+	const newAccessToken = generateToken(
+		user.id,
+		process.env.REFRESH_TOKEN_KEY,
+		"15m"
+	);
+	const refreshToken = generateToken(
+		user.id,
+		process.env.REFRESH_TOKEN_KEY,
+		"7d"
+	);
+	res.cookie("jid", refreshToken, {
+		httpOnly: true,
+		path: "/api/auth/refresh-token",
+	});
+	return res
+		.status(200)
+		.json({ success: true, data: { accessToken: newAccessToken } });
 };
 exports.signIn = async (req, res) => {
 	const { email, password } = req.body;
 	try {
 		const user = await User.findOne({ email });
 		if (!user) {
-			return res
-				.status(400)
-				.send({ errors: [{ msg: "email or password is uncorrect" }] });
+			throw new BadRequest("wrong email or password");
 		}
 		const match = await bcrypt.compare(password, user.password);
 		if (!match) {
-			return res
-				.status(400)
-				.send({ errors: [{ msg: "email or password is uncorrect" }] });
+			throw new BadRequest("wrong email or password");
 		}
-		const payload = { _id: user._id };
-		const token = jwt.sign(payload, process.env.key, { expiresIn: "24h" });
-		res.status(200).send({ msg: "login successfully", user, token });
+		user.password = "";
+		const accessToken = generateToken(
+			user.id,
+			process.env.ACCESS_TOKEN_KEY,
+			"15m"
+		);
+
+		const refreshToken = generateToken(
+			user.id,
+			process.env.REFRESH_TOKEN_KEY,
+			"7d"
+		);
+		res.cookie("jid", refreshToken, {
+			httpOnly: true,
+			path: "/api/auth/refresh-token",
+		});
+
+		res.status(200).json({ success: true, data: { user, accessToken } });
 	} catch (error) {
-		res.status(500).send({ errors: [{ msg: "couldn't login" }] });
+		next(error);
 	}
 };
 
-exports.logout = async (req, res, next) => {};
+exports.logout = async (req, res, next) => {
+	res.cookie("jid", "", {
+		httpOnly: true,
+		path: "/api/auth/refresh-token",
+	});
+
+	res.status(200).json({ success: true, data: null });
+};
+
+function generateToken(id, secret, expiresIn) {
+	const payload = { _id: id };
+	const token = jwt.sign(payload, secret, { expiresIn });
+	return token;
+}

@@ -1,19 +1,26 @@
 const jwt = require("jsonwebtoken");
-const userSchema = require("../models/user");
-const auth = async (req, res, next) => {
-  const token = req.headers["authorization"];
-  try {
-    if (!token) {
-      return res
-        .status(400)
-        .send({ errors: [{ msg: "you are not authorized" }] });
-    }
-    const decoded = jwt.verify(token, process.env.key);
-    const user = await userSchema.findById(decoded._id);
-    req.user = user;
-    next();
-  } catch (error) {
-    console.log(error);
-  }
+const User = require("../models/user");
+const { Unauthorized, Forbidden } = require("../utils/errorResponse");
+const auth = (roles) => async (req, _res, next) => {
+	const bearerToken = req.headers.authorization;
+
+	try {
+		if (!bearerToken || !bearerToken.startsWith("Bearer")) {
+			throw new Unauthorized("you're not logged in");
+		}
+		const [_, accessToken] = bearerToken.split(" ");
+		const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_KEY);
+		const user = await User.findById(decoded?._id);
+		if (!user) {
+			throw new Unauthorized("Invalid token");
+		}
+		if (roles && roles.length && !roles.includes(user.role)) {
+			throw new Forbidden();
+		}
+		req.user = user;
+		next();
+	} catch (error) {
+		next(error);
+	}
 };
 module.exports = auth;

@@ -13,6 +13,8 @@ async function bootstrap() {
 		await connectDB();
 		app.use(express.json());
 
+		app.use(cors());
+		app.use(cookieParser());
 		// app.use("/", generalRouter);
 		app.use("/api/auth", authRouter);
 
