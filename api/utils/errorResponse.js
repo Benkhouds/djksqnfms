@@ -26,7 +26,7 @@ class Forbidden extends ErrorResponse {
 	}
 }
 class Unauthorized extends ErrorResponse {
-	constructor(message = null) {
+	constructor(message) {
 		super(message ?? "Not authorized", 401);
 	}
 }

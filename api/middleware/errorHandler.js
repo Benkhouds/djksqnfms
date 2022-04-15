@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 module.exports = (error, req, res, next) => {
 	console.log(error);
 	if (error instanceof ErrorResponse) {
+		console.log(error.message);
 		return res
 			.status(error.statusCode)
 			.json({ success: false, error: error.message });
